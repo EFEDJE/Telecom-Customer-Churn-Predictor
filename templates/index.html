@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Churn Predictor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f6f9; }
+        .card { border-radius: 12px; }
+    </style>
+</head>
+<body class="py-5">
+    <div class="container" style="max-width: 720px;">
+        <div class="card shadow-sm border-0 p-4">
+            <h3 class="fw-bold mb-1 text-center">Customer Churn Predictor</h3>
+            <p class="text-muted text-center mb-4">Enter customer account metrics to evaluate retention risk.</p>
+
+            <form id="churnForm">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Account Duration (Weeks)</label>
+                        <input type="number" class="form-control" name="account_weeks" value="128" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Customer Service Calls</label>
+                        <input type="number" class="form-control" name="cust_serv_calls" value="1" required>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Contract Renewed?</label>
+                        <select class="form-select" name="contract_renewal">
+                            <option value="1" selected>Yes (1)</option>
+                            <option value="0">No (0)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Active Data Plan?</label>
+                        <select class="form-select" name="data_plan">
+                            <option value="1" selected>Yes (1)</option>
+                            <option value="0">No (0)</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Data Usage (GB)</label>
+                        <input type="number" step="0.1" class="form-control" name="data_usage" value="2.7" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Monthly Charge ($)</label>
+                        <input type="number" step="0.01" class="form-control" name="monthly_charge" value="89.0" required>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Daytime Minutes</label>
+                        <input type="number" step="0.1" class="form-control" name="day_mins" value="265.1" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Daytime Calls</label>
+                        <input type="number" class="form-control" name="day_calls" value="110" required>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Overage Fee ($)</label>
+                        <input type="number" step="0.01" class="form-control" name="overage_fee" value="9.87" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Roaming Minutes</label>
+                        <input type="number" step="0.1" class="form-control" name="roam_mins" value="10.0" required>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">Generate Prediction</button>
+                </div>
+            </form>
+
+            <div id="resultBox" class="mt-4 d-none">
+                <div id="resultAlert" class="alert p-3 text-center mb-0" role="alert">
+                    <h5 class="fw-bold mb-1" id="resultTitle"></h5>
+                    <p class="mb-0" id="resultDesc"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById("churnForm").addEventListener("submit", async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById("submitBtn");
+            const resultBox = document.getElementById("resultBox");
+            const resultAlert = document.getElementById("resultAlert");
+            const resultTitle = document.getElementById("resultTitle");
+            const resultDesc = document.getElementById("resultDesc");
+
+            btn.disabled = true;
+            btn.innerText = "Analyzing...";
+
+            const formData = new FormData(this);
+            const payload = {
+                account_weeks: parseInt(formData.get("account_weeks")),
+                contract_renewal: parseInt(formData.get("contract_renewal")),
+                data_plan: parseInt(formData.get("data_plan")),
+                data_usage: parseFloat(formData.get("data_usage")),
+                cust_serv_calls: parseInt(formData.get("cust_serv_calls")),
+                day_mins: parseFloat(formData.get("day_mins")),
+                day_calls: parseInt(formData.get("day_calls")),
+                monthly_charge: parseFloat(formData.get("monthly_charge")),
+                overage_fee: parseFloat(formData.get("overage_fee")),
+                roam_mins: parseFloat(formData.get("roam_mins"))
+            };
+
+            try {
+                const res = await fetch("/predict", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                resultBox.classList.remove("d-none");
+                if (data.success) {
+                    if (data.churn_risk) {
+                        resultAlert.className = "alert alert-danger p-3 text-center mb-0";
+                        resultTitle.innerText = "Warning: Likely to Churn";
+                        resultDesc.innerText = "Model output: [1]. This customer exhibits behavioral patterns consistent with churn.";
+                    } else {
+                        resultAlert.className = "alert alert-success p-3 text-center mb-0";
+                        resultTitle.innerText = "Status: Retained";
+                        resultDesc.innerText = "Model output: [0]. This customer exhibits low churn probability.";
+                    }
+                } else {
+                    resultAlert.className = "alert alert-warning p-3 text-center mb-0";
+                    resultTitle.innerText = "Inference Error";
+                    resultDesc.innerText = data.error;
+                }
+            } catch (err) {
+                resultBox.classList.remove("d-none");
+                resultAlert.className = "alert alert-danger p-3 text-center mb-0";
+                resultTitle.innerText = "Connection Failed";
+                resultDesc.innerText = err.message;
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Generate Prediction";
+            }
+        });
+    </script>
+</body>
+</html>
