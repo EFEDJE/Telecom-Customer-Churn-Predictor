@@ -8,8 +8,10 @@ from pydantic import BaseModel
 load_dotenv()
 
 app = FastAPI(title="Telecom Churn Predictor")
+
+# Get absolute path and join it with the "templates" folder
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-templates = Jinja2Templates(directory=BASE_DIR = os.path.dirname(os.path.abspath(__file__)))
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 AZURE_ENDPOINT_URL = os.getenv("AZURE_ENDPOINT_URL")
 AZURE_API_KEY = os.getenv("AZURE_API_KEY")
@@ -28,7 +30,7 @@ class CustomerData(BaseModel):
 
 @app.get("/")
 def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="index.html")
 
 @app.post("/predict")
 def predict(data: CustomerData):
